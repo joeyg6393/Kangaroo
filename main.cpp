@@ -61,6 +61,7 @@ void printUsage() {
   printf(" -o fileName: output result to fileName\n");
   printf(" -l: List cuda enabled devices\n");
   printf(" -check: Check GPU kernel vs CPU\n");
+  printf(" -seed n: Use specific random seed (for reproducible/distributed runs)\n");
   printf(" inFile: intput configuration file\n");
   exit(0);
 
@@ -163,6 +164,8 @@ static bool serverMode = false;
 static string serverIP = "";
 static string outputFile = "";
 static bool splitWorkFile = false;
+static uint32_t randomSeed = 0;
+static bool useCustomSeed = false;
 
 int main(int argc, char* argv[]) {
 
@@ -174,7 +177,7 @@ if constexpr (UseSymmetry) {
 
   // Global Init
   Timer::Init();
-  rseed(Timer::getSeed32());
+  // Seed will be set after argument parsing
 
   // Init SecpK1
   Secp256K1 *secp = new Secp256K1();
@@ -298,6 +301,11 @@ if constexpr (UseSymmetry) {
     } else if(strcmp(argv[a],"-check") == 0) {
       checkFlag = true;
       a++;
+    } else if(strcmp(argv[a],"-seed") == 0) {
+      CHECKARG("-seed",1);
+      randomSeed = (uint32_t)getInt("seed",argv[a]);
+      useCustomSeed = true;
+      a++;
     } else if(a == argc - 1) {
       configFile = string(argv[a]);
       a++;
@@ -316,6 +324,16 @@ if constexpr (UseSymmetry) {
   } else if(gridSize.size() != gpuId.size() * 2) {
     printf("Invalid gridSize or gpuId argument, must have coherent size\n");
     exit(-1);
+  }
+
+  // Initialize random seed
+  if(useCustomSeed) {
+    rseed(randomSeed);
+    printf("Using random seed: %u\n", randomSeed);
+  } else {
+    uint32_t timeSeed = Timer::getSeed32();
+    rseed(timeSeed);
+    printf("Using random seed: %u (use -seed %u to reproduce)\n", timeSeed, timeSeed);
   }
 
   Kangaroo *v = new Kangaroo(secp,dp,gpuEnable,workFile,iWorkFile,savePeriod,saveKangaroo,saveKangarooByServer,
