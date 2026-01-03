@@ -1,14 +1,34 @@
+# Visual Studio
 .vs/
-Kangaroo.vcxproj.user
-Kangaroo.vcxproj.user
-Kangaroo.vcxproj.user
-Kangaroo.VC.opendb
-Kangaroo.sdf
-vc140.pdb
+*.vcxproj.user
+*.VC.opendb
+*.sdf
+*.pdb
 x64/
 obj/
+Debug/
+Release/
+
+# JetBrains
 .idea/
-CMakeLists.txt
-kangaroo
 cmake-build-debug/
+
+# Build artifacts
+kangaroo
+*.o
+*.a
+*.so
+*.exe
 *.prf
+
+# Work files
+*.work
+*.part
+
+# CMake
+CMakeLists.txt
+CMakeCache.txt
+CMakeFiles/
+
+# Claude
+.claude/

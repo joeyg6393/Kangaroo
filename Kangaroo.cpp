@@ -67,13 +67,8 @@ Kangaroo::Kangaroo(Secp256K1 *secp,int32_t initDPSize,bool useGpu,string &workFi
 
   CPU_GRP_SIZE = 1024;
 
-  // Init mutex
-#ifdef WIN64
-  ghMutex = CreateMutex(NULL,FALSE,NULL);
-  saveMutex = CreateMutex(NULL,FALSE,NULL);
-#else
-  pthread_mutex_init(&ghMutex, NULL);
-  pthread_mutex_init(&saveMutex, NULL);
+  // std::mutex is default-initialized, no explicit init needed
+#ifndef WIN64
   signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -645,24 +640,13 @@ void Kangaroo::SolveKeyGPU(TH_PARAM *ph) {
 
 // ----------------------------------------------------------------------------
 
-#ifdef WIN64
-DWORD WINAPI _SolveKeyCPU(LPVOID lpParam) {
-#else
-void *_SolveKeyCPU(void *lpParam) {
-#endif
-  TH_PARAM *p = (TH_PARAM *)lpParam;
+// Thread wrapper functions for std::thread
+void _SolveKeyCPU(TH_PARAM *p) {
   p->obj->SolveKeyCPU(p);
-  return 0;
 }
 
-#ifdef WIN64
-DWORD WINAPI _SolveKeyGPU(LPVOID lpParam) {
-#else
-void *_SolveKeyGPU(void *lpParam) {
-#endif
-  TH_PARAM *p = (TH_PARAM *)lpParam;
+void _SolveKeyGPU(TH_PARAM *p) {
   p->obj->SolveKeyGPU(p);
-  return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -933,11 +917,13 @@ void Kangaroo::Run(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize
     ::exit(0);
   }
 
-  TH_PARAM *params = (TH_PARAM *)malloc(totalThread * sizeof(TH_PARAM));
-  THREAD_HANDLE *thHandles = (THREAD_HANDLE *)malloc(totalThread * sizeof(THREAD_HANDLE));
+  TH_PARAM *params = new TH_PARAM[totalThread]();
+  THREAD_HANDLE *thHandles = new THREAD_HANDLE[totalThread];
 
-  memset(params, 0,totalThread * sizeof(TH_PARAM));
-  memset(counters, 0, sizeof(counters));
+  // Reset atomic counters
+  for (auto& counter : counters) {
+    counter.store(0, std::memory_order_relaxed);
+  }
   ::printf("Number of CPU thread: %d\n", nbCPUThread);
 
 #ifdef WITHGPU
@@ -1025,14 +1011,17 @@ void Kangaroo::Run(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize
       endOfSearch = false;
       collisionInSameHerd = 0;
 
-      // Reset conters
-      memset(counters,0,sizeof(counters));
+      // Reset counters (atomic-safe)
+      for (auto& counter : counters) {
+        counter.store(0, std::memory_order_relaxed);
+      }
 
-      // Lanch CPU threads
+      // Launch CPU threads
       for(int i = 0; i < nbCPUThread; i++) {
         params[i].threadId = i;
         params[i].isRunning = true;
-        thHandles[i] = LaunchThread(_SolveKeyCPU,params + i);
+        params[i].obj = this;
+        thHandles[i] = std::thread(_SolveKeyCPU, params + i);
       }
 
 #ifdef WITHGPU
@@ -1043,7 +1032,8 @@ void Kangaroo::Run(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize
         params[id].threadId = 0x80L + i;
         params[id].isRunning = true;
         params[id].gpuId = gpuId[i];
-        thHandles[id] = LaunchThread(_SolveKeyGPU,params + id);
+        params[id].obj = this;
+        thHandles[id] = std::thread(_SolveKeyGPU, params + id);
       }
 
 #endif
@@ -1080,6 +1070,9 @@ void Kangaroo::Run(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize
 
   ::printf("\nDone: Total time %s \n" , GetTimeStr(t1-t0+offsetTime).c_str());
 
+  // Cleanup
+  delete[] params;
+  delete[] thHandles;
 }
 
 

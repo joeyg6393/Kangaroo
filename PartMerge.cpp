@@ -189,16 +189,10 @@ extern DWORD WINAPI _mergeThread(LPVOID lpParam);
 extern void* _mergeThread(void* lpParam);
 #endif
 
-// Threaded proc
-#ifdef WIN64
-DWORD WINAPI _mergePartThread(LPVOID lpParam) {
-#else
-void* _mergePartThread(void* lpParam) {
-#endif
-  TH_PARAM* p = (TH_PARAM*)lpParam;
+// Thread wrapper function for std::thread
+void _mergePartThread(TH_PARAM* p) {
   p->obj->MergePartition(p);
   p->isRunning = false;
-  return 0;
 }
 
 bool Kangaroo::MergeWorkPartPart(std::string& part1Name,std::string& part2Name) {
@@ -363,9 +357,8 @@ bool Kangaroo::MergeWorkPartPart(std::string& part1Name,std::string& part2Name) 
   ::printf("Thread: %d\n",nbThread);
   ::printf("Merging");
 
-  TH_PARAM* params = (TH_PARAM*)malloc(nbThread * sizeof(TH_PARAM));
-  THREAD_HANDLE* thHandles = (THREAD_HANDLE*)malloc(nbThread * sizeof(THREAD_HANDLE));
-  memset(params,0,nbThread * sizeof(TH_PARAM));
+  TH_PARAM* params = new TH_PARAM[nbThread]();
+  THREAD_HANDLE* thHandles = new THREAD_HANDLE[nbThread];
   uint64_t nbDP = 0;
 
   for(int p = 0; p < MERGE_PART && !endOfSearch; p+=nbThread) {
@@ -379,7 +372,8 @@ bool Kangaroo::MergeWorkPartPart(std::string& part1Name,std::string& part2Name) 
       params[i].hStop = 0;
       params[i].part1Name = _strdup(part1Name.c_str());
       params[i].part2Name = _strdup(part2Name.c_str());
-      thHandles[i] = LaunchThread(_mergePartThread,params + i);
+      params[i].obj = this;
+      thHandles[i] = std::thread(_mergePartThread, params + i);
     }
 
     JoinThreads(thHandles,nbThread);
@@ -393,8 +387,8 @@ bool Kangaroo::MergeWorkPartPart(std::string& part1Name,std::string& part2Name) 
 
   }
 
-  free(params);
-  free(thHandles);
+  delete[] params;
+  delete[] thHandles;
 
   t1 = Timer::get_tick();
 

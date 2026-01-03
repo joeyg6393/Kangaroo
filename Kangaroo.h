@@ -38,20 +38,20 @@ typedef int SOCKET;
 
 #include <string>
 #include <vector>
+#include <mutex>
+#include <thread>
+#include <atomic>
 #include "SECPK1/SECP256k1.h"
 #include "HashTable.h"
 #include "SECPK1/IntGroup.h"
 #include "GPU/GPUEngine.h"
 
-#ifdef WIN64
-typedef HANDLE THREAD_HANDLE;
-#define LOCK(mutex) WaitForSingleObject(mutex,INFINITE);
-#define UNLOCK(mutex) ReleaseMutex(mutex);
-#else
-typedef pthread_t THREAD_HANDLE;
-#define LOCK(mutex)  pthread_mutex_lock(&(mutex));
-#define UNLOCK(mutex) pthread_mutex_unlock(&(mutex));
-#endif
+// Modern C++ threading types
+using THREAD_HANDLE = std::thread;
+
+// Mutex helper macros (for gradual migration - prefer std::scoped_lock in new code)
+#define LOCK(mutex) mutex.lock();
+#define UNLOCK(mutex) mutex.unlock();
 
 class Kangaroo;
 
@@ -207,16 +207,11 @@ private:
   bool SendKangaroosToServer(std::string& fileName,std::vector<int128_t>& kangs);
   bool GetKangaroosFromServer(std::string& fileName,std::vector<int128_t>& kangs);
 
-#ifdef WIN64
-  HANDLE ghMutex;
-  HANDLE saveMutex;
-  THREAD_HANDLE LaunchThread(LPTHREAD_START_ROUTINE func,TH_PARAM *p);
-#else
-  pthread_mutex_t  ghMutex;
-  pthread_mutex_t  saveMutex;
-  THREAD_HANDLE LaunchThread(void *(*func) (void *), TH_PARAM *p);
-#endif
+// Modern C++ synchronization
+  std::mutex ghMutex;
+  std::mutex saveMutex;
 
+  // Thread management
   void JoinThreads(THREAD_HANDLE *handles, int nbThread);
   void FreeHandles(THREAD_HANDLE *handles, int nbThread);
   void Process(TH_PARAM *params,std::string unit);
@@ -229,7 +224,7 @@ private:
 
   Secp256K1 *secp;
   HashTable hashTable;
-  uint64_t counters[256];
+  std::atomic<uint64_t> counters[256];
   int  nbCPUThread;
   int  nbGPUThread;
   double startTime;

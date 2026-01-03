@@ -611,31 +611,19 @@ bool Kangaroo::HandleRequest(TH_PARAM *p) {
 
 }
 
-// Threaded proc
-#ifdef WIN64
-DWORD WINAPI _acceptThread(LPVOID lpParam) {
-#else
-void *_acceptThread(void *lpParam) {
-#endif
-  TH_PARAM *p = (TH_PARAM *)lpParam;
+// Thread wrapper functions for std::thread
+void _acceptThread(TH_PARAM *p) {
   p->obj->AddConnectedClient();
   p->obj->HandleRequest(p);
   p->obj->RemoveConnectedClient();
   p->obj->RemoveConnectedKangaroo(p->nbKangaroo);
   p->isRunning = false;
   free(p->clientInfo);
-  free(p);
-  return 0;
+  delete p;
 }
 
-#ifdef WIN64
-DWORD WINAPI _processServer(LPVOID lpParam) {
-#else
-void *_processServer(void *lpParam) {
-#endif
-  Kangaroo *obj = (Kangaroo *)lpParam;
+void _processServer(Kangaroo *obj) {
   obj->ProcessServer();
-  return 0;
 }
 
 // Main server loop
@@ -656,8 +644,7 @@ void Kangaroo::AcceptConnections(SOCKET server_soc) {
 
     } else {
       
-      TH_PARAM *p = (TH_PARAM *)malloc(sizeof(TH_PARAM));
-      ::memset(p,0,sizeof(TH_PARAM));
+      TH_PARAM *p = new TH_PARAM();
       char info[256];
       ::sprintf(info,"%s:%d",inet_ntoa(client_add.sin_addr),ntohs(client_add.sin_port));
 #ifdef WIN64
@@ -668,7 +655,7 @@ void Kangaroo::AcceptConnections(SOCKET server_soc) {
       p->obj = this;
       p->isRunning = true;
       p->clientSock = clientSock;
-      LaunchThread(_acceptThread,p);
+      std::thread(_acceptThread, p).detach();
 
     }
 
@@ -712,7 +699,7 @@ void Kangaroo::RunServer() {
   }
 
   // Main thread of server (handle backup and collision check)
-  LaunchThread(_processServer,(TH_PARAM *)this);
+  std::thread(_processServer, this).detach();
   Timer::SleepMillis(100);
 
   // Server stuff

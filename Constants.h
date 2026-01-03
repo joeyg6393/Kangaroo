@@ -18,33 +18,36 @@
 #ifndef CONSTANTSH
 #define CONSTANTSH
 
+#include <cstdint>
+
 // Release number
-#define RELEASE "2.2"
+inline constexpr const char* RELEASE = "2.3";
 
-// Use symmetry
-//#define USE_SYMMETRY
+// Use symmetry (equivalence classes via negation map)
+// Provides ~1.4x speedup by exploiting P ~ -P equivalence
+#define USE_SYMMETRY
+inline constexpr bool UseSymmetry = true;
 
-// Number of random jumps
-// Max 512 for the GPU
-#define NB_JUMP 32
+// Number of random jumps (max 512 for GPU)
+inline constexpr int NB_JUMP = 32;
 
 // GPU group size
-#define GPU_GRP_SIZE 128
+inline constexpr int GPU_GRP_SIZE = 128;
 
-// GPU number of run per kernel call
-#define NB_RUN 64
+// GPU number of runs per kernel call
+inline constexpr int NB_RUN = 64;
 
-// Kangaroo type
-#define TAME 0  // Tame kangaroo
-#define WILD 1  // Wild kangaroo
+// Kangaroo types
+inline constexpr uint32_t TAME = 0;
+inline constexpr uint32_t WILD = 1;
 
-// SendDP Period in sec
-#define SEND_PERIOD 2.0
+// SendDP Period in seconds
+inline constexpr double SEND_PERIOD = 2.0;
 
-// Timeout before closing connection idle client in sec
-#define CLIENT_TIMEOUT 3600.0
+// Timeout before closing idle client connection in seconds
+inline constexpr double CLIENT_TIMEOUT = 3600.0;
 
-// Number of merge partition
-#define MERGE_PART 256
+// Number of merge partitions
+inline constexpr int MERGE_PART = 256;
 
 #endif //CONSTANTSH

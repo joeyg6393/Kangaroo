@@ -20,18 +20,21 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 #include "SECPK1/Point.h"
 #ifdef WIN64
 #include <Windows.h>
 #endif
 
-#define HASH_SIZE_BIT 18
-#define HASH_SIZE (1<<HASH_SIZE_BIT)
-#define HASH_MASK (HASH_SIZE-1)
+// Hash table configuration
+inline constexpr int HASH_SIZE_BIT = 18;
+inline constexpr int HASH_SIZE = (1 << HASH_SIZE_BIT);
+inline constexpr int HASH_MASK = (HASH_SIZE - 1);
 
-#define ADD_OK        0
-#define ADD_DUPLICATE 1
-#define ADD_COLLISION 2
+// Add operation return codes
+inline constexpr int ADD_OK        = 0;
+inline constexpr int ADD_DUPLICATE = 1;
+inline constexpr int ADD_COLLISION = 2;
 
 union int128_s {
 

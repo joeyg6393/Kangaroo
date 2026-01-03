@@ -166,11 +166,11 @@ static bool splitWorkFile = false;
 
 int main(int argc, char* argv[]) {
 
-#ifdef USE_SYMMETRY
-  printf("Kangaroo v" RELEASE " (with symmetry)\n");
-#else
-  printf("Kangaroo v" RELEASE "\n");
-#endif
+if constexpr (UseSymmetry) {
+    printf("Kangaroo v%s (with symmetry)\n", RELEASE);
+  } else {
+    printf("Kangaroo v%s\n", RELEASE);
+  }
 
   // Global Init
   Timer::Init();

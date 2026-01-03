@@ -1,0 +1,7 @@
+# 32-bit test case for verifying USE_SYMMETRY
+# Range: 0x80000000 to 0xFFFFFFFF (32-bit, ~2B keys)
+# With symmetry: ~2^16 ops expected, < 1 second
+# Known solution from Bitcoin Puzzle #32: 0xD916CE8
+80000000
+FFFFFFFF
+0359A3BFDAD718C9D3FAC7C187F1139F0815AC5D923910D516E186AFDA28B221DC

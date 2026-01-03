@@ -156,27 +156,15 @@ bool Kangaroo::CheckWorkFile(TH_PARAM* p) {
 
 }
 
-// Threaded proc
-#ifdef WIN64
-DWORD WINAPI _checkPartThread(LPVOID lpParam) {
-#else
-void* _checkPartThread(void* lpParam) {
-#endif
-  TH_PARAM* p = (TH_PARAM*)lpParam;
+// Thread wrapper functions for std::thread
+void _checkPartThread(TH_PARAM* p) {
   p->obj->CheckPartition(p);
   p->isRunning = false;
-  return 0;
 }
 
-#ifdef WIN64
-DWORD WINAPI _checkWorkThread(LPVOID lpParam) {
-#else
-void* _checkWorkThread(void* lpParam) {
-#endif
-  TH_PARAM* p = (TH_PARAM*)lpParam;
+void _checkWorkThread(TH_PARAM* p) {
   p->obj->CheckWorkFile(p);
   p->isRunning = false;
-  return 0;
 }
 
 void Kangaroo::CheckPartition(int nbCore,std::string& partName) {
@@ -234,9 +222,8 @@ void Kangaroo::CheckPartition(int nbCore,std::string& partName) {
   ::printf("Thread: %d\n",nbThread);
   ::printf("CheckingPart");
 
-  TH_PARAM* params = (TH_PARAM*)malloc(nbThread * sizeof(TH_PARAM));
-  THREAD_HANDLE* thHandles = (THREAD_HANDLE*)malloc(nbThread * sizeof(THREAD_HANDLE));
-  memset(params,0,nbThread * sizeof(TH_PARAM));
+  TH_PARAM* params = new TH_PARAM[nbThread]();
+  THREAD_HANDLE* thHandles = new THREAD_HANDLE[nbThread];
   uint64_t nbDP = 0;
   uint64_t nbWrong = 0;
 
@@ -250,7 +237,8 @@ void Kangaroo::CheckPartition(int nbCore,std::string& partName) {
       params[i].hStart = p + i;
       params[i].hStop = 0;
       params[i].part1Name = _strdup(partName.c_str());
-      thHandles[i] = LaunchThread(_checkPartThread,params + i);
+      params[i].obj = this;
+      thHandles[i] = std::thread(_checkPartThread, params + i);
     }
 
     JoinThreads(thHandles,nbThread);
@@ -264,8 +252,8 @@ void Kangaroo::CheckPartition(int nbCore,std::string& partName) {
 
   }
 
-  free(params);
-  free(thHandles);
+  delete[] params;
+  delete[] thHandles;
 
   t1 = Timer::get_tick();
 
@@ -350,9 +338,8 @@ void Kangaroo::CheckWorkFile(int nbCore,std::string& fileName) {
   ::printf("Thread: %d\n",nbThread);
   ::printf("Checking");
 
-  TH_PARAM* params = (TH_PARAM*)malloc(nbThread * sizeof(TH_PARAM));
-  THREAD_HANDLE* thHandles = (THREAD_HANDLE*)malloc(nbThread * sizeof(THREAD_HANDLE));
-  memset(params,0,nbThread * sizeof(TH_PARAM));
+  TH_PARAM* params = new TH_PARAM[nbThread]();
+  THREAD_HANDLE* thHandles = new THREAD_HANDLE[nbThread];
 
   int block = HASH_SIZE / 64;
 
@@ -373,7 +360,8 @@ void Kangaroo::CheckWorkFile(int nbCore,std::string& fileName) {
       params[i].isRunning = true;
       params[i].hStart = S + i * stride;
       params[i].hStop = S + (i + 1) * stride;
-      thHandles[i] = LaunchThread(_checkWorkThread,params + i);
+      params[i].obj = this;
+      thHandles[i] = std::thread(_checkWorkThread, params + i);
     }
     JoinThreads(thHandles,nbThread);
     FreeHandles(thHandles,nbThread);
@@ -387,8 +375,8 @@ void Kangaroo::CheckWorkFile(int nbCore,std::string& fileName) {
   }
 
   ::fclose(f1);
-  free(params);
-  free(thHandles);
+  delete[] params;
+  delete[] thHandles;
 
   t1 = Timer::get_tick();
 
